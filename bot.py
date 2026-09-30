@@ -13,7 +13,7 @@ TOKEN = "8966563925:AAG6UUmIekPHuk4ofWGIfmjEtmADgDYW8GE"
 ADMIN_CHAT_ID = -1004412941809
 CHANNEL_ID = -1004321340609
 
-# --- ВАШИ ССЫЛКИ ДЛЯ КНОПОК ПОД ПОСТОМ ---
+# --- ТВОИ ССЫЛКИ ДЛЯ ТЕКСТА В ПОСТЕ ---
 URL_NAVIGATOR = "https://t.me/podslushkaumsf"
 URL_CHAT = "https://t.me/+Ke9d8wUtJD1hM2Zi"
 URL_RULES = "https://t.me/c/4321340609/6"
@@ -22,13 +22,12 @@ URL_BOT = "https://t.me/project121212_bot"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-
 class Suggestion(StatesGroup):
     waiting_for_content = State()
 
-
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
+    # Это меню для самого бота (тут кнопки нужны)
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(text="💬 Чат", url=URL_CHAT),
@@ -46,24 +45,18 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer("Меню навигации:", reply_markup=builder.as_markup())
     await state.set_state(Suggestion.waiting_for_content)
 
-
 @dp.callback_query(F.data == "start_suggest")
 async def callback_start_suggest(callback: types.CallbackQuery):
     await callback.message.answer("Отправляй пост (текст, фото или видео):")
     await callback.answer()
-
 
 @dp.message(Suggestion.waiting_for_content)
 async def process_suggestion(message: types.Message, state: FSMContext):
     keyboard = types.InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                types.InlineKeyboardButton(
-                    text="✅ Опубликовать", callback_data="pub"
-                ),
-                types.InlineKeyboardButton(
-                    text="❌ Отклонить", callback_data="rej"
-                ),
+                types.InlineKeyboardButton(text="✅ Опубликовать", callback_data="pub"),
+                types.InlineKeyboardButton(text="❌ Отклонить", callback_data="rej"),
             ]
         ]
     )
@@ -79,45 +72,61 @@ async def process_suggestion(message: types.Message, state: FSMContext):
 
     await message.answer("✅ Отправлено на проверку.")
 
-
 @dp.callback_query(F.data == "pub")
 async def publish_post(callback: types.CallbackQuery):
     if callback.message.reply_to_message:
         original_msg = callback.message.reply_to_message
         
-        channel_keyboard = InlineKeyboardBuilder()
-        channel_keyboard.row(
-            types.InlineKeyboardButton(text="💬 Чат", url=URL_CHAT),
-            types.InlineKeyboardButton(text="📜 Правила", url=URL_RULES),
-        )
-        channel_keyboard.row(
-            types.InlineKeyboardButton(text="🔀 Переходник", url=URL_NAVIGATOR),
-        )
-        channel_keyboard.row(
-            types.InlineKeyboardButton(text="📥 Предложить пост", url=URL_BOT),
+        # --- ВОТ ТУТ МЫ ФОРМИРУЕМ ТЕКСТ ССЫЛОК КАК НА СКРИНШОТЕ ---
+        links_text = (
+            f"\n\n<a href='{URL_NAVIGATOR}'>Переходник</a> | "
+            f"<a href='{URL_CHAT}'>Чат</a> | "
+            f"<a href='{URL_RULES}'>Инфо</a>\n"
+            f"<a href='{URL_BOT}'>Предложить пост</a>"
         )
 
-        await bot.copy_message(
-            chat_id=CHANNEL_ID,
-            from_chat_id=original_msg.forward_from_chat.id if original_msg.forward_from_chat else original_msg.chat.id,
-            message_id=original_msg.forward_from_message_id if original_msg.forward_from_message_id else original_msg.message_id,
-            reply_markup=channel_keyboard.as_markup()
-        )
+        # Берем текст пользователя (если есть) и сохраняем его оригинальное форматирование
+        text = original_msg.html_text or ""
+        final_text = text + links_text
+
+        # Отправляем пост заново (от имени бота), чтобы прикрепить текст
+        if original_msg.photo:
+            await bot.send_photo(
+                chat_id=CHANNEL_ID,
+                photo=original_msg.photo[-1].file_id,
+                caption=final_text,
+                parse_mode="HTML"
+            )
+        elif original_msg.video:
+            await bot.send_video(
+                chat_id=CHANNEL_ID,
+                video=original_msg.video.file_id,
+                caption=final_text,
+                parse_mode="HTML"
+            )
+        elif original_msg.text:
+            await bot.send_message(
+                chat_id=CHANNEL_ID,
+                text=final_text,
+                parse_mode="HTML",
+                disable_web_page_preview=True
+            )
+        else:
+            # Если прислали кружочек/стикер/документ — копируем его и кидаем ссылки следом
+            await bot.copy_message(chat_id=CHANNEL_ID, from_chat_id=original_msg.chat.id, message_id=original_msg.message_id)
+            await bot.send_message(chat_id=CHANNEL_ID, text=links_text.strip(), parse_mode="HTML", disable_web_page_preview=True)
         
     await callback.message.edit_text("✅ Опубликовано в канале!")
     await callback.answer()
-
 
 @dp.callback_query(F.data == "rej")
 async def reject_post(callback: types.CallbackQuery):
     await callback.message.edit_text("❌ Отклонено.")
     await callback.answer()
 
-
 # --- МИНИ-СЕРВЕР ДЛЯ RENDER ---
 async def handle(request):
     return web.Response(text="Bot is alive!")
-
 
 async def main():
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -132,7 +141,6 @@ async def main():
     logging.info(f"Web server started on port {port}")
 
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
