@@ -7,14 +7,20 @@ from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 TOKEN = "8966563925:AAEfgBnZ7Mv90eqXLWViV9GEq2TtDuyxfRk"
 ADMIN_CHAT_ID = -1004412941809
 CHANNEL_ID = -1004321340609
 
+# --- ТВОИ ССЫЛКИ ДЛЯ КНОПОК ПОД ПОСТОМ ---
+URL_NAVIGATOR = "https://t.me/podslushkaumsf"    # Ссылка на переходник
+URL_CHAT = "https://t.me/+Ke9d8wUtJD1hM2Zi"      # Ссылка на чат
+URL_RULES = "https://t.me/c/4321340609/6"        # Ссылка на правила
+URL_BOT = "https://t.me/project121212_bot"       # Ссылка на этот же бот (предложка)
+
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-
 
 class Suggestion(StatesGroup):
   waiting_for_content = State()
@@ -22,11 +28,28 @@ class Suggestion(StatesGroup):
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
-  await message.answer(
-      "Привет! 👋 Отправь мне текст, фото или видео, и я передам его на"
-      " модерацию админам."
+  builder = InlineKeyboardBuilder()
+  builder.row(
+      types.InlineKeyboardButton(text="💬 Чат", url=URL_CHAT),
+      types.InlineKeyboardButton(text="📜 Правила", url=URL_RULES),
   )
+  builder.row(
+      types.InlineKeyboardButton(text="🔀 Переходник", url=URL_NAVIGATOR),
+  )
+  builder.row(
+      types.InlineKeyboardButton(
+          text="📥 Предложить пост", callback_data="start_suggest"
+      )
+  )
+
+  await message.answer("Меню навигации:", reply_markup=builder.as_markup())
   await state.set_state(Suggestion.waiting_for_content)
+
+
+@dp.callback_query(F.data == "start_suggest")
+async def callback_start_suggest(callback: types.CallbackQuery):
+  await callback.message.answer("Отправляй пост (текст, фото или видео):")
+  await callback.answer()
 
 
 @dp.message(Suggestion.waiting_for_content)
@@ -35,8 +58,7 @@ async def process_suggestion(message: types.Message, state: FSMContext):
       inline_keyboard=[
           [
               types.InlineKeyboardButton(
-                  text="✅ Опубликовать",
-                  callback_data=f"pub_{message.from_user.id}",
+                  text="✅ Опубликовать", callback_data="pub"
               ),
               types.InlineKeyboardButton(
                   text="❌ Отклонить", callback_data="rej"
@@ -45,30 +67,49 @@ async def process_suggestion(message: types.Message, state: FSMContext):
       ]
   )
 
-  await message.forward(chat_id=ADMIN_CHAT_ID)
+  forwarded_msg = await message.forward(chat_id=ADMIN_CHAT_ID)
+  
   await bot.send_message(
       ADMIN_CHAT_ID,
-      "📩 Новая предложка от пользователя:",
+      "📩 Новая предложка:",
       reply_markup=keyboard,
+      reply_to_message_id=forwarded_msg.message_id
   )
 
-  await message.answer(
-      "✅ Спасибо! Твоя предложка отправлена на проверку. Если она подойдет,"
-      " ее опубликуют в канале."
-  )
-  await state.clear()
+  await message.answer("✅ Отправлено на проверку.")
 
 
-@dp.callback_query(F.data.startswith("pub_"))
+@dp.callback_query(F.data == "pub")
 async def publish_post(callback: types.CallbackQuery):
-  await callback.message.forward(chat_id=CHANNEL_ID)
-  await callback.message.edit_text("✅ Пост успешно опубликован в канале!")
+  if callback.message.reply_to_message:
+      original_msg = callback.message.reply_to_message
+      
+      channel_keyboard = InlineKeyboardBuilder()
+      channel_keyboard.row(
+          types.InlineKeyboardButton(text="💬 Чат", url=URL_CHAT),
+          types.InlineKeyboardButton(text="📜 Правила", url=URL_RULES),
+      )
+      channel_keyboard.row(
+          types.InlineKeyboardButton(text="🔀 Переходник", url=URL_NAVIGATOR),
+      )
+      channel_keyboard.row(
+          types.InlineKeyboardButton(text="📥 Предложить пост", url=URL_BOT),
+      )
+
+      await bot.copy_message(
+          chat_id=CHANNEL_ID,
+          from_chat_id=original_msg.forward_from_chat.id if original_msg.forward_from_chat else original_msg.chat.id,
+          message_id=original_msg.forward_from_message_id if original_msg.forward_from_message_id else original_msg.message_id,
+          reply_markup=channel_keyboard.as_markup()
+      )
+      
+  await callback.message.edit_text("✅ Опубликовано в канале!")
   await callback.answer()
 
 
 @dp.callback_query(F.data == "rej")
 async def reject_post(callback: types.CallbackQuery):
-  await callback.message.edit_text("❌ Предложка отклонена.")
+  await callback.message.edit_text("❌ Отклонено.")
   await callback.answer()
 
 
@@ -80,7 +121,6 @@ async def handle(request):
 async def main():
   logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
-  # 1. Сначала запускаем веб-сервер, чтобы Render сразу увидел открытый порт
   app = web.Application()
   app.add_routes([web.get("/", handle)])
   runner = web.AppRunner(app)
@@ -90,7 +130,6 @@ async def main():
   await site.start()
   logging.info(f"Web server started on port {port}")
 
-  # 2. Затем запускаем самого телеграм-бота
   await dp.start_polling(bot)
 
 
