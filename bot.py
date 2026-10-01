@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-TOKEN = "8966563925:AAF4F3aDv9kLh88jCwnsaeF225eyRqh2BDI"
+TOKEN = "8966563925:AAFVyRch533cPFAJ3_IFeR_2-MXZGt9xTpI"
 ADMIN_CHAT_ID = -1004412941809
 CHANNEL_ID = -1004321340609
 
