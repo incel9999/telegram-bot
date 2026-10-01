@@ -18,8 +18,8 @@ ADMIN_CHAT_ID = -1004412941809
 CHANNEL_ID = -1004321340609
 
 # --- ТВОИ ССЫЛКИ ДЛЯ ТЕКСТА В ПОСТЕ ---
-URL_NAVIGATOR = "https://t.me/podslushkaumsf"
-URL_CHAT = "https://t.me/+Ke9d8wUtJD1hM2Zi"
+URL_NAVIGATOR = "https://t.me/perehodumsf"
+URL_CHAT = "https://t.me/+tkYc9AbDeAw4ZTMy"
 URL_RULES = "https://t.me/c/4321340609/6"
 URL_BOT = "https://t.me/project121212_bot"
 
