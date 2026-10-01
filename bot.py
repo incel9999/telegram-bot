@@ -15,7 +15,7 @@ CHANNEL_ID = -1004321340609
 
 # --- ТВОИ ССЫЛКИ ДЛЯ ТЕКСТА В ПОСТЕ ---
 URL_NAVIGATOR = "https://t.me/podslushkaumsf"
-URL_CHAT = "https://t.me/+tkYc9AbDeAw4ZTMy"
+URL_CHAT = "https://t.me/+Ke9d8wUtJD1hM2Zi"
 URL_RULES = "https://t.me/c/4321340609/6"
 URL_BOT = "https://t.me/project121212_bot"
 
@@ -27,7 +27,6 @@ class Suggestion(StatesGroup):
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
-    # Это меню для самого бота (тут кнопки нужны)
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(text="💬 Чат", url=URL_CHAT),
@@ -37,9 +36,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
         types.InlineKeyboardButton(text="🔀 Переходник", url=URL_NAVIGATOR),
     )
     builder.row(
-        types.InlineKeyboardButton(
-            text="📥 Предложить пост", callback_data="start_suggest"
-        )
+        types.InlineKeyboardButton(text="📥 Предложить пост", callback_data="start_suggest")
     )
 
     await message.answer("Меню навигации:", reply_markup=builder.as_markup())
@@ -77,7 +74,7 @@ async def publish_post(callback: types.CallbackQuery):
     if callback.message.reply_to_message:
         original_msg = callback.message.reply_to_message
         
-        # --- ВОТ ТУТ МЫ ФОРМИРУЕМ ТЕКСТ ССЫЛОК КАК НА СКРИНШОТЕ ---
+        # Ссылки текстом через разделители в самом низу поста
         links_text = (
             f"\n\n<a href='{URL_NAVIGATOR}'>Переходник</a> | "
             f"<a href='{URL_CHAT}'>Чат</a> | "
@@ -85,11 +82,9 @@ async def publish_post(callback: types.CallbackQuery):
             f"<a href='{URL_BOT}'>Предложить пост</a>"
         )
 
-        # Берем текст пользователя (если есть) и сохраняем его оригинальное форматирование
         text = original_msg.html_text or ""
         final_text = text + links_text
 
-        # Отправляем пост заново (от имени бота), чтобы прикрепить текст
         if original_msg.photo:
             await bot.send_photo(
                 chat_id=CHANNEL_ID,
@@ -112,7 +107,6 @@ async def publish_post(callback: types.CallbackQuery):
                 disable_web_page_preview=True
             )
         else:
-            # Если прислали кружочек/стикер/документ — копируем его и кидаем ссылки следом
             await bot.copy_message(chat_id=CHANNEL_ID, from_chat_id=original_msg.chat.id, message_id=original_msg.message_id)
             await bot.send_message(chat_id=CHANNEL_ID, text=links_text.strip(), parse_mode="HTML", disable_web_page_preview=True)
         
