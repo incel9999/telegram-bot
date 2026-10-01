@@ -9,7 +9,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-TOKEN = "8966563925:AAFVyRch533cPFAJ3_IFeR_2-MXZGt9xTpI"
+# Токен берется из переменной окружения BOT_TOKEN (Render -> Environment)
+TOKEN = os.getenv("BOT_TOKEN", "").strip()
+if not TOKEN:
+    sys.exit("Ошибка: переменная окружения BOT_TOKEN не задана")
+
 ADMIN_CHAT_ID = -1004412941809
 CHANNEL_ID = -1004321340609
 
@@ -59,7 +63,7 @@ async def process_suggestion(message: types.Message, state: FSMContext):
     )
 
     forwarded_msg = await message.forward(chat_id=ADMIN_CHAT_ID)
-    
+
     await bot.send_message(
         ADMIN_CHAT_ID,
         "📩 Новая предложка:",
@@ -73,7 +77,7 @@ async def process_suggestion(message: types.Message, state: FSMContext):
 async def publish_post(callback: types.CallbackQuery):
     if callback.message.reply_to_message:
         original_msg = callback.message.reply_to_message
-        
+
         # Ссылки текстом через разделители в самом низу поста
         links_text = (
             f"\n\n<a href='{URL_NAVIGATOR}'>Переходник</a> | "
@@ -109,7 +113,7 @@ async def publish_post(callback: types.CallbackQuery):
         else:
             await bot.copy_message(chat_id=CHANNEL_ID, from_chat_id=original_msg.chat.id, message_id=original_msg.message_id)
             await bot.send_message(chat_id=CHANNEL_ID, text=links_text.strip(), parse_mode="HTML", disable_web_page_preview=True)
-        
+
     await callback.message.edit_text("✅ Опубликовано в канале!")
     await callback.answer()
 
@@ -134,6 +138,8 @@ async def main():
     await site.start()
     logging.info(f"Web server started on port {port}")
 
+    # Сбрасываем возможный чужой вебхук и накопившиеся старые апдейты
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
